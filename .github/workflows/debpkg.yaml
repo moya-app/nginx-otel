@@ -14,7 +14,16 @@ jobs:
     runs-on: ${{ matrix.build.runs-on }}
     steps:
       - uses: actions/checkout@v4
+      - name: Restore helm and kubeform
+        id: cached-deb-pkgs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/debian/artifacts
+          key: ${{ runner.os }}-debpackages
       - uses: jtdor/build-deb-action@v1
+        id: builder
+        if: steps.cached-binaries.output.cache-hit != 'true'
         name: build-deb
         env:
           DEB_BUILD_OPTIONS: noautodbgsym
@@ -22,6 +31,6 @@ jobs:
           buildpackage-opts: -us -uc -b -rfakeroot
           extra-build-deps: ca-certificates
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && steps.cached-dep-pkgs.output.cache-hit != 'true'
         with:
-          files: ${{ steps.artifact.outputs.value }}
+          files: ${{ steps.builder.outputs.value }}
