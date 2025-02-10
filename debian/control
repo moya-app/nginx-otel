@@ -1,4 +1,4 @@
-Source: libnginx-mod-http-otel
+Source: libnginx-mod-otel
 Section: httpd
 Priority: optional
 Maintainer: Aldemir Akpinar <aldemir.akpinar@moya.app>
@@ -19,7 +19,7 @@ Vcs-Git: https://github.com/moya-app/nginx-otel
 Vcs-Browser: https://github.com/moya-app/nginx-otel
 Rules-Requires-Root: no
 
-Package: libnginx-mod-http-otel
+Package: libnginx-mod-otel
 Architecture: any
 Multi-Arch: foreign
 Depends: ${misc:Depends},
