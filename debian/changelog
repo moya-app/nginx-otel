@@ -1,4 +1,10 @@
-libnginx-mod-http-otel (1.0.0) unstable; urgency=medium
+libnginx-mod-otel (1.0.0-1) unstable; urgency=medium
+
+  * Added nginx module config
+
+ -- Aldemir Akpinar <aldemir.akpinar@moya.app>  Fri, 10 Feb 2025 16:01:24 +0300
+
+libnginx-mod-otel (1.0.0) unstable; urgency=medium
 
   * Initial Release
 
