@@ -1,30 +1,51 @@
-on: 
-  workflow_call:
-    inputs:
-      runner_x86:
-        description: 'The runner to use for x86 builds'
-        required: false
-        type: string
-        default: buildjet-2vcpu-ubuntu-2204
-      runner_arm:
-        description: 'The runner to use for arm64 builds'
-        required: false
-        type: string
-        default: buildjet-2vcpu-ubuntu-2204-arm
+name: Debian otel deb package generator
+
+on: push
+
+permissions:
+  contents: write
+
+# Required for creating a release
+env:
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
-  strategy:
-    matrix:
-      build:
-        - arch: amd64
-          runs-on: ${{ inputs.runner_x86 }}
-        - arch: arm64
-          runs-on: ${{ inputs.runner_arm }}
   build-debs:
+    timeout-minutes: 25
+    strategy:
+      matrix:
+        build:
+          - arch: amd64
+            runs-on: buildjet-2vcpu-ubuntu-2204
+          - arch: arm64
+            runs-on: buildjet-2vcpu-ubuntu-2204-arm
     runs-on: ${{ matrix.build.runs-on }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get Package version
+        id: deb-version
+        run: |
+          deb_ver=$(dpkg-parsechangelog --show-field Version)
+          echo "tag_name=$deb_ver" >> $GITHUB_OUTPUT
+          if [ "${{ runner.arch }}" == "X64" ];then
+            myarch="amd64"
+          elif [ "${{ runner.arch }}" == "ARM64" ];then
+            myarch="arm64"
+          else
+            myarch=""
+          fi
+          echo "rel_name=${deb_ver}-${myarch}" >> $GITHUB_OUTPUT
+
+          # Create a tag with package version and arch
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git tag -f -a ${deb_ver}-${myarch} -m "Release ${VERSION}."
+          git push origin ${deb_ver}-${myarch} -f
+
+
       - uses: jtdor/build-deb-action@v1
+        id: builder
         name: build-deb
         env:
           DEB_BUILD_OPTIONS: noautodbgsym
@@ -32,8 +53,11 @@ jobs:
           buildpackage-opts: -us -uc -b -rfakeroot
           extra-build-deps: ca-certificates
 
-      - name: Tag to Release
-        uses: softprops/action-gh-release@v2
-        #if: startsWith(github.ref, 'refs/tags/')
+      - uses: ncipollo/release-action@v1
         with:
-          files: {{ steps.artifact.outputs.value }}
+          artifacts: "${{ github.workspace }}/debian/artifacts/*"
+          name: ${{steps.deb-version.outputs.rel_name}}
+          tag: ${{steps.deb-version.outputs.rel_name}}
+          omitNameDuringUpdate: "true"
+          omitPrereleaseDuringUpdate: "true"
+          allowUpdates: "true"
