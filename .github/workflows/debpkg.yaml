@@ -2,8 +2,16 @@ name: Debian otel deb package generator
 
 on: push
 
+permissions:
+  contents: write
+
+# Required for creating a release
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   build-debs:
+    timeout-minutes: 25
     strategy:
       matrix:
         build:
@@ -14,23 +22,42 @@ jobs:
     runs-on: ${{ matrix.build.runs-on }}
     steps:
       - uses: actions/checkout@v4
-      - name: Restore helm and kubeform
-        id: cached-deb-pkgs
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/debian/artifacts
-          key: ${{ runner.os }}-debpackages
+
+      - name: Get Package version
+        id: deb-version
+        run: |
+          deb_ver=$(dpkg-parsechangelog --show-field Version)
+          echo "tag_name=$deb_ver" >> $GITHUB_OUTPUT
+          if [ "${{ runner.arch }}" == "X64" ];then
+            myarch="amd64"
+          elif [ "${{ runner.arch }}" == "ARM64" ];then
+            myarch="arm64"
+          else
+            myarch=""
+          fi
+          echo "rel_name=${deb_ver}-${myarch}" >> $GITHUB_OUTPUT
+
+          # Create a tag with package version and arch
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git tag -f -a ${deb_ver}-${myarch} -m "Release ${VERSION}."
+          git push origin ${deb_ver}-${myarch} -f
+
+
       - uses: jtdor/build-deb-action@v1
         id: builder
-        if: steps.cached-binaries.output.cache-hit != 'true'
         name: build-deb
         env:
           DEB_BUILD_OPTIONS: noautodbgsym
         with:
           buildpackage-opts: -us -uc -b -rfakeroot
           extra-build-deps: ca-certificates
-      - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') && steps.cached-dep-pkgs.output.cache-hit != 'true'
+
+      - uses: ncipollo/release-action@v1
         with:
-          files: ${{ steps.builder.outputs.value }}
+          artifacts: "${{ github.workspace }}/debian/artifacts/*"
+          name: ${{steps.deb-version.outputs.rel_name}}
+          tag: ${{steps.deb-version.outputs.rel_name}}
+          omitNameDuringUpdate: "true"
+          omitPrereleaseDuringUpdate: "true"
+          allowUpdates: "true"
