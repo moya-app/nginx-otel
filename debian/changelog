@@ -1,3 +1,9 @@
+libnginx-mod-otel (1.0.0-2) unstable; urgency=medium
+
+  * Remove libpcre3-dev dependency
+
+ -- Aldemir Akpinar <aldemir.akpinar@moya.app>  Fri, 11 Dec 2025 12:11:49 +0300
+
 libnginx-mod-otel (1.0.0-1) unstable; urgency=medium
 
   * Added nginx module config
