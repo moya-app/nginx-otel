@@ -5,7 +5,6 @@ on: push
 permissions:
   contents: write
 
-# Required for creating a release
 env:
   GH_TOKEN: ${{ github.token }}
 
@@ -24,43 +23,66 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get Package version
-        id: deb-version
+      - name: Get Package Details
+        id: details
         run: |
           deb_ver=$(dpkg-parsechangelog --show-field Version)
-          echo "tag_name=$deb_ver" >> $GITHUB_OUTPUT
-          if [ "${{ runner.arch }}" == "X64" ];then
-            myarch="amd64"
-          elif [ "${{ runner.arch }}" == "ARM64" ];then
-            myarch="arm64"
-          else
-            myarch=""
-          fi
-          codename=$(lsb_release -sc)
-          echo "rel_name=${deb_ver}-${myarch}-${codename}" >> $GITHUB_OUTPUT
-
-          # Create a tag with package version and arch
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
-          git tag -f -a ${deb_ver}-${myarch} -m "Release ${VERSION}."
-          git push origin ${deb_ver}-${myarch} -f
-
+          echo "version=$deb_ver" >> $GITHUB_OUTPUT
+          
+          image_name="${{ matrix.image }}"
+          codename=$(echo "$image_name" | cut -d: -f2 | cut -d- -f1)
+          echo "codename=$codename" >> $GITHUB_OUTPUT
 
       - uses: jtdor/build-deb-action@v1
         id: builder
-        name: build-deb
         env:
           DEB_BUILD_OPTIONS: noautodbgsym
         with:
           buildpackage-opts: -us -uc -b -rfakeroot
           extra-build-deps: ca-certificates
-          docker-image: ${{matrix.image}}
+          docker-image: ${{ matrix.image }}
+
+      - name: Rename Artifacts
+        run: |
+          cd debian/artifacts
+          for file in *.deb; do
+            mv "$file" "${file%.deb}_${{ steps.details.outputs.codename }}.deb"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.build.arch }}-${{ steps.details.outputs.codename }}
+          path: ${{ github.workspace }}/debian/artifacts/*.deb
+          retention-days: 1
+
+  create-release:
+    needs: build-debs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Package Version
+        id: version
+        run: |
+          deb_ver=$(dpkg-parsechangelog --show-field Version)
+          echo "version=$deb_ver" >> $GITHUB_OUTPUT
+          # Create a tag with package version and arch
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git tag -f -a ${deb_ver} -m "Release ${VERSION}."
+          git push origin ${deb_ver}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          merge-multiple: true
+          path: dist
 
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ github.workspace }}/debian/artifacts/*"
-          name: ${{steps.deb-version.outputs.rel_name}}
-          tag: ${{steps.deb-version.outputs.rel_name}}
-          omitNameDuringUpdate: "true"
-          omitPrereleaseDuringUpdate: "true"
-          allowUpdates: "true"
+          artifacts: "dist/*"
+          name: ${{ steps.version.outputs.version }}
+          tag: ${{ steps.version.outputs.version }}
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          allowUpdates: true
