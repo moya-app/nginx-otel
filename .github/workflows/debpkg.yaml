@@ -19,6 +19,7 @@ jobs:
             runs-on: moya-xlarge-x86
           - arch: arm64
             runs-on: moya-xlarge-arm
+        image: ["debian:bookworm-slim", "debian:trixie-slim"]
     runs-on: ${{ matrix.build.runs-on }}
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +36,8 @@ jobs:
           else
             myarch=""
           fi
-          echo "rel_name=${deb_ver}-${myarch}" >> $GITHUB_OUTPUT
+          codename=$(lsb_release -sc)
+          echo "rel_name=${deb_ver}-${myarch}-${codename}" >> $GITHUB_OUTPUT
 
           # Create a tag with package version and arch
           git config user.name "GitHub Actions Bot"
@@ -52,6 +54,7 @@ jobs:
         with:
           buildpackage-opts: -us -uc -b -rfakeroot
           extra-build-deps: ca-certificates
+          docker-image: ${{matrix.image}}
 
       - uses: ncipollo/release-action@v1
         with:
