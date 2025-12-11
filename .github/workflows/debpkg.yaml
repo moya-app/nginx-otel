@@ -16,9 +16,9 @@ jobs:
       matrix:
         build:
           - arch: amd64
-            runs-on: moya-xlarge-x86
+            runs-on: buildjet-2vcpu-ubuntu-2204
           - arch: arm64
-            runs-on: moya-xlarge-arm
+            runs-on: buildjet-2vcpu-ubuntu-2204-arm
         image: ["debian:bookworm-slim", "debian:trixie-slim"]
     runs-on: ${{ matrix.build.runs-on }}
     steps:
