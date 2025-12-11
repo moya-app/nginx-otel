@@ -44,6 +44,7 @@ jobs:
 
       - name: Rename Artifacts
         run: |
+          sudo chown -R $USER debian/artifacts
           cd debian/artifacts
           for file in *.deb; do
             mv "$file" "${file%.deb}_${{ steps.details.outputs.codename }}.deb"
