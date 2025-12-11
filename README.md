@@ -122,7 +122,7 @@ Follow these steps to build the `ngx_otel_module` dynamic module on Ubuntu or De
 
 Install build tools and dependencies.
 ```bash
-sudo apt install cmake build-essential libssl-dev zlib1g-dev libpcre3-dev
+sudo apt install cmake build-essential libssl-dev zlib1g-dev
 sudo apt install pkg-config libc-ares-dev libre2-dev # for gRPC
 ```
 
